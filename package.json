@@ -1,0 +1,20 @@
+{
+  "name": "syncthing-conflicts-helper",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --format=iife --global-name=plugin",
+    "watch": "npm run build -- --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "esbuild": "^0.27.1"
+  },
+  "dependencies": {
+    "@logseq/libs": "^0.0.17",
+    "diff": "^8.0.2"
+  },
+  "logseq": {
+    "id": "_0eftsxt4d"
+  }
+}

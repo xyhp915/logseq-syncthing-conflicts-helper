@@ -1,0 +1,11 @@
+{
+  "id": "syncthink-conflicts-helper",
+  "title": "Syncthing Conflicts Manager",
+  "description": "A Logseq plugin to manage Syncthing conflict files.",
+  "author": "Rémi Aubel",
+  "icon": "./icon.png",
+  "main": "dist/index.js",
+  "enableOnMobile": true,
+  "repo": "",
+  "effect": false
+}
