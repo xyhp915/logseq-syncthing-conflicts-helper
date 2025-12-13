@@ -3,7 +3,7 @@
   "title": "Syncthing Conflicts Helper",
   "description": "A Logseq plugin to help resolving Syncthing conflicts.",
   "author": "Rémi Aubel",
-  "icon": "./icon.png",
+  "icon": "icons/icon.png",
   "main": "dist/index.js",
   "enableOnMobile": true,
   "repo": "raubel/logseq-syncthing-conflicts-helper",
