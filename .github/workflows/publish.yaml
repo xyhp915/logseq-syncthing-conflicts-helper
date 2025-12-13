@@ -1,9 +1,7 @@
 name: Publish plugin
 
 on:
-  push:
-    tags:
-      - '*'
+  workflow_dispatch:
 
 env:
   PLUGIN_NAME: logseq-syncthing-conflicts-helper
@@ -44,6 +42,7 @@ jobs:
           allowUpdates: true
           draft: false
           prerelease: false
+          tag: ${{ steps.build.outputs.tag_name }}
 
       - name: Upload zip file
         id: upload_zip
