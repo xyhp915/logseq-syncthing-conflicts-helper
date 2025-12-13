@@ -1,7 +1,9 @@
 name: Publish plugin
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - '*'
 
 env:
   PLUGIN_NAME: logseq-syncthing-conflicts-helper
