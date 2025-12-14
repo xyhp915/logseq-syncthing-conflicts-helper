@@ -3073,9 +3073,8 @@ var plugin = (() => {
   // src/index.ts
   var pluginName = "syncthing-conflicts-helper";
   var defaultConflictPageName = "Syncthing Conflicts Report";
-  function conflictPageName() {
-    return logseq.settings?.conflictPageName ?? defaultConflictPageName;
-  }
+  var conflictPageName = () => logseq.settings?.conflictPageName ?? defaultConflictPageName;
+  var count = (n, singular, plural = singular + "s") => n + " " + (n <= 1 ? singular : plural);
   async function conflicts() {
     return await logseq.DB.datascriptQuery(
       `
@@ -3111,60 +3110,56 @@ var plugin = (() => {
     }
     return content2;
   }
-  async function updateOrDeleteConflictPage() {
-    conflicts().then((files) => {
-      if (files.length === 0) {
-        console.log(`${pluginName}: no conflicts found.`);
-        registerButton("\u2705", "No Conflicts", () => {
-          logseq.UI.showMsg("No sync conflicts found!", "success");
-        });
-      } else {
-        console.log(`${pluginName}: found ${files.length} conflict(s).`);
-        registerButton("\u{1F6A8}", "View Conflicts", async () => {
-          const pageName = conflictPageName();
-          await logseq.Editor.deletePage(pageName);
-          const page = await logseq.Editor.createPage(pageName, {}, {
-            createFirstBlock: false
-          });
-          if (page) {
-            const pageContent = `The following sync conflicts were found`;
-            const parentBlock = await logseq.Editor.insertBlock(pageName, pageContent);
-            files.forEach((file) => {
-              const conflictFileName = file[0];
-              const originalFileName = conflictFileName.replace(/\.sync-conflict-.*/, "");
-              Promise.all([content(originalFileName), content(conflictFileName)]).then(async ([originalContent, conflictContent]) => {
-                const diff = createTwoFilesPatch(originalFileName, conflictFileName, originalContent, conflictContent);
-                const added = diff.split("\n").filter((value) => value.startsWith("+") && !value.startsWith("+++")).length;
-                const removed = diff.split("\n").filter((value) => value.startsWith("-") && !value.startsWith("---")).length;
-                const fileBlock = await logseq.Editor.insertBlock(
-                  parentBlock.uuid,
-                  `
-                                [[${originalFileName}]] - [[${conflictFileName}]] (${added} added lines, ${removed} removed lines) - {{{renderer syncthing-conflict-helper--mark-as-resolved, ${conflictFileName}}}}
-                                collapsed:: true
-                                `.replace(/^ */gm, ""),
-                  { focus: false }
-                );
-                await logseq.Editor.insertBlock(
-                  fileBlock.uuid,
-                  `
-                                \`\`\`diff
-                                ${diff}
-                                \`\`\`
-                                `.replace(/^ */gm, ""),
-                  { focus: false }
-                );
-              });
-            });
-          } else {
-            await logseq.UI.showMsg("Failed to create 'Sync Conflicts' page.", "error");
+  async function updateStatus(pageName) {
+    const files = await conflicts();
+    if (files.length === 0) {
+      console.log(`${pluginName}: no conflicts found.`);
+      registerButton("\u2705", "No Conflicts", () => {
+        logseq.UI.showMsg("No sync conflicts found!", "success");
+      });
+    } else {
+      console.log(`${pluginName}: found ${files.length} conflict(s).`);
+      registerButton("\u{1F6A8}", `View ${count(files.length, "Conflict")}`, async () => {
+        await logseq.Editor.deletePage(pageName);
+        const page = await logseq.Editor.createPage(pageName, {}, { createFirstBlock: false });
+        if (page) {
+          const pageContent = `The following sync conflicts were found`;
+          const parentBlock = await logseq.Editor.insertBlock(pageName, pageContent);
+          for (const file of files) {
+            const conflictFileName = file[0];
+            const conflictContent = await content(conflictFileName);
+            const originalFileName = conflictFileName.replace(/\.sync-conflict-.*/, "");
+            const originalContent = await content(originalFileName);
+            const diff = createTwoFilesPatch(originalFileName, conflictFileName, originalContent, conflictContent);
+            const added = diff.split("\n").filter((value) => value.startsWith("+") && !value.startsWith("+++")).length;
+            const removed = diff.split("\n").filter((value) => value.startsWith("-") && !value.startsWith("---")).length;
+            const fileBlock = await logseq.Editor.insertBlock(
+              parentBlock.uuid,
+              `
+                        [[${originalFileName}]] - [[${conflictFileName}]] (${count(added, "added line")}, ${count(removed, "removed line")}) - {{{renderer syncthing-conflict-helper--mark-as-resolved, ${conflictFileName}}}}
+                        collapsed:: true
+                        `.replace(/^ */gm, ""),
+              { focus: false }
+            );
+            await logseq.Editor.insertBlock(
+              fileBlock.uuid,
+              `
+                        \`\`\`diff
+                        ${diff}
+                        \`\`\`
+                        `.replace(/^ */gm, ""),
+              { focus: false }
+            );
           }
-        });
-      }
-    });
+        } else {
+          await logseq.UI.showMsg("Failed to create 'Sync Conflicts' page.", "error");
+        }
+      });
+    }
   }
   async function execute() {
     console.log(`${pluginName}: checking for conflicts...`);
-    await updateOrDeleteConflictPage();
+    await updateStatus(conflictPageName());
   }
   async function initialize() {
     logseq.useSettingsSchema(settingsSchema);
@@ -3185,6 +3180,7 @@ var plugin = (() => {
     });
     logseq.provideModel({
       async markAsResolved(e) {
+        const pageName = conflictPageName();
         console.log(`${pluginName}: markAsResolved`, e);
         const conflictFileName = e?.dataset?.conflictPage;
         if (conflictFileName) {
@@ -3192,7 +3188,7 @@ var plugin = (() => {
           if (page) {
             await logseq.Editor.deletePage(page.name);
             await logseq.UI.showMsg(`Conflict page '${conflictFileName}' marked as resolved and deleted.`, "success");
-            await updateOrDeleteConflictPage();
+            await updateStatus(pageName);
           } else {
             await logseq.UI.showMsg(`Conflict page '${conflictFileName}' not found.`, "error");
           }
